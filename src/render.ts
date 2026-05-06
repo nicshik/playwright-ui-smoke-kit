@@ -219,10 +219,10 @@ jobs:
 
   const setupPackageManager =
     manager === "pnpm"
-      ? `      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      ? `      - name: Enable pnpm with Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@10 --activate
 
 `
       : manager === "yarn"
