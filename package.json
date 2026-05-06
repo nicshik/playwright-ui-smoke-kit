@@ -1,0 +1,57 @@
+{
+  "name": "playwright-ui-smoke-kit",
+  "version": "0.1.0",
+  "description": "Install a small Playwright Chromium UI smoke check in web projects.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Nikolay Shik",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicshik/playwright-ui-smoke-kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nicshik/playwright-ui-smoke-kit/issues"
+  },
+  "homepage": "https://github.com/nicshik/playwright-ui-smoke-kit#readme",
+  "bin": {
+    "playwright-ui-smoke-kit": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "skills",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:e2e": "node scripts/e2e-fixture-smoke.mjs",
+    "validate:skills": "node scripts/validate-skills.mjs",
+    "prepack": "npm run build",
+    "pack:dry-run": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.1.0",
+    "commander": "^14.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14",
+    "yaml": "^2.8.1"
+  },
+  "keywords": [
+    "playwright",
+    "smoke-test",
+    "ui-testing",
+    "github-actions",
+    "codex",
+    "openclaw"
+  ]
+}

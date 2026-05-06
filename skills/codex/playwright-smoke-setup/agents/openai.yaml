@@ -1,0 +1,4 @@
+interface:
+  display_name: "Playwright Smoke Setup"
+  short_description: "Install Playwright UI smoke checks in web projects."
+  default_prompt: "Add a Playwright UI smoke check to this project."
