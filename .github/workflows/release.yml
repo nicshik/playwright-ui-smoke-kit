@@ -3,6 +3,7 @@ name: Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,9 +21,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Show publish toolchain
+        run: |
+          node --version
+          npm --version
 
       - name: Install dependencies
         run: npm ci
@@ -36,10 +45,29 @@ jobs:
       - name: Validate skills
         run: npm run validate:skills
 
+      - name: Read package version
+        id: package
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Check npm version
+        id: published
+        run: |
+          if npm view "playwright-ui-smoke-kit@${{ steps.package.outputs.version }}" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "playwright-ui-smoke-kit@${{ steps.package.outputs.version }} is already published."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "playwright-ui-smoke-kit@${{ steps.package.outputs.version }} is not published yet."
+          fi
+
       - name: Publish dry run
+        if: steps.published.outputs.exists != 'true'
         run: npm run publish:dry-run
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: steps.published.outputs.exists != 'true'
+        run: npm publish --access public
+
+      - name: Skip npm publish
+        if: steps.published.outputs.exists == 'true'
+        run: echo "Skipping npm publish because this version already exists."

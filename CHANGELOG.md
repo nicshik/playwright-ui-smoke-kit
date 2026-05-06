@@ -9,3 +9,4 @@
 - Added Codex and OpenClaw skill packs.
 - Added `doctor`, `add-route`, and `install-skill` maintenance commands.
 - Added monorepo support through `--repo-root` and `--app-dir`.
+- Added npm Trusted Publishing release workflow documentation.

@@ -161,6 +161,10 @@ The repository includes installable agent skills:
 
 See [docs/skills.md](docs/skills.md).
 
+## Releasing
+
+Releases are published to npm through Trusted Publishing from GitHub Actions. No `NPM_TOKEN` repository secret is required. Maintainer notes live in [docs/releasing.md](docs/releasing.md).
+
 ## Troubleshooting
 
 - **Port is busy**: run `npx playwright-ui-smoke-kit doctor` and either stop the external process or choose another `--web-port`.

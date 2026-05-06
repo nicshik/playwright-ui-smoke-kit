@@ -21,3 +21,9 @@ PACKAGE_MANAGER=npm npm run test:e2e
 - Keep Chromium-only smoke as the first layer.
 - Add or update tests for CLI behavior changes.
 - Do not commit Playwright reports, browser binaries, or fixture output.
+
+## Releases
+
+Maintainers publish through npm Trusted Publishing from GitHub Actions. Do not add long-lived npm tokens to this repository.
+
+See [docs/releasing.md](docs/releasing.md) for the release checklist and npm trusted publisher settings.
