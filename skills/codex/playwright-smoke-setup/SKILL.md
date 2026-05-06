@@ -18,6 +18,12 @@ description: Add or maintain Playwright Chromium UI smoke checks in JavaScript/T
 npx playwright-ui-smoke-kit init
 ```
 
+For monorepos, pass both roots:
+
+```bash
+npx playwright-ui-smoke-kit init --repo-root . --app-dir apps/web
+```
+
 Use non-interactive mode when enough project facts are known:
 
 ```bash
@@ -30,12 +36,29 @@ npx playwright-ui-smoke-kit init \
 ```
 
 3. Pick the nearest template:
-   - `vite-app` for Vite-style dev servers;
    - `next-app` for Next.js;
    - `app-plus-api` when Playwright should start both API and Web App;
-   - `static-site` for static HTML or documentation sites.
+   - `static-site` for static HTML or documentation sites;
+   - `vite-app` for Vite, Astro, SvelteKit, Nuxt, and unknown JavaScript web apps unless project evidence suggests another template.
 4. Do not use `--force` unless the user explicitly asks to replace existing Playwright files.
-5. Run the generated check with the project package manager.
+5. Use `doctor` after installation and `add-route` for later route additions:
+
+```bash
+npx playwright-ui-smoke-kit doctor
+npx playwright-ui-smoke-kit add-route "/dashboard::Dashboard"
+```
+
+6. Run the generated check with the project package manager.
+
+## Skill Installation
+
+Install or update this skill with:
+
+```bash
+npx playwright-ui-smoke-kit install-skill codex
+```
+
+Use `--dry-run` before copying and `--force` only when replacing an existing local skill.
 
 ## Manual Fallback
 

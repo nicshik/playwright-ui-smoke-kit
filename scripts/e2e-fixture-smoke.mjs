@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const root = new URL("..", import.meta.url).pathname;
 const packageManager = process.env.PACKAGE_MANAGER || "npm";
+const monorepo = process.env.MONOREPO === "1";
 
 function run(command, args, cwd, env = {}) {
   execFileSync(command, args, {
@@ -31,7 +32,7 @@ async function writeFixtureProject(dir) {
         version: "0.0.0",
         private: true,
         scripts: {
-          dev: "node server.mjs",
+          dev: "node tests/static-server.mjs",
         },
       },
       null,
@@ -40,19 +41,8 @@ async function writeFixtureProject(dir) {
     "utf8",
   );
   await writeFile(
-    join(dir, "server.mjs"),
-    `import http from "node:http";
-
-const port = Number(process.env.PORT || 4173);
-const server = http.createServer((request, response) => {
-  response.setHeader("content-type", "text/html; charset=utf-8");
-  response.end("<!doctype html><title>Fixture</title><h1>Fixture Home</h1>");
-});
-
-server.listen(port, "127.0.0.1", () => {
-  console.log(\`fixture server listening on \${port}\`);
-});
-`,
+    join(dir, "index.html"),
+    "<!doctype html><title>Fixture</title><h1>Fixture Home</h1>\n",
     "utf8",
   );
 }
@@ -77,18 +67,19 @@ function installTarball(packageManager, tarball, cwd) {
 }
 
 function installChromium(packageManager, cwd) {
+  const browserArgs = process.env.CI ? ["install", "--with-deps", "chromium"] : ["install", "chromium"];
   switch (packageManager) {
     case "npm":
-      run("npx", ["playwright", "install", "chromium"], cwd);
+      run("npx", ["playwright", ...browserArgs], cwd);
       break;
     case "pnpm":
-      run("pnpm", ["exec", "playwright", "install", "chromium"], cwd);
+      run("pnpm", ["exec", "playwright", ...browserArgs], cwd);
       break;
     case "yarn":
-      run("yarn", ["playwright", "install", "chromium"], cwd);
+      run("yarn", ["playwright", ...browserArgs], cwd);
       break;
     case "bun":
-      run("bunx", ["playwright", "install", "chromium"], cwd);
+      run("bunx", ["playwright", ...browserArgs], cwd);
       break;
   }
 }
@@ -111,7 +102,8 @@ function runSmoke(packageManager, cwd) {
 }
 
 const packDir = await mkdtemp(join(tmpdir(), "pusk-pack-"));
-const fixtureDir = await mkdtemp(join(tmpdir(), `pusk-${packageManager}-`));
+const repoRoot = await mkdtemp(join(tmpdir(), `pusk-${packageManager}-`));
+const fixtureDir = monorepo ? join(repoRoot, "apps", "web") : repoRoot;
 
 try {
   await mkdir(packDir, { recursive: true });
@@ -121,33 +113,39 @@ try {
     .at(-1);
   const actualTarball = join(packDir, packOutput);
 
+  await mkdir(fixtureDir, { recursive: true });
   await writeFixtureProject(fixtureDir);
   installTarball(packageManager, actualTarball, fixtureDir);
 
-  run("node", [
-    join(fixtureDir, "node_modules", "playwright-ui-smoke-kit", "dist", "cli.js"),
+  run("npx", [
+    "playwright-ui-smoke-kit",
     "init",
     "--yes",
     "--template",
     "static-site",
     "--package-manager",
     packageManager,
-    "--web-command",
-    "node server.mjs",
-    "--web-port",
-    "4173",
+    "--repo-root",
+    repoRoot,
+    "--app-dir",
+    fixtureDir,
     "--route",
     "/::Fixture Home",
-    "--ci",
-    "none",
   ], fixtureDir);
+
+  if (monorepo) {
+    const workflow = await readFile(join(repoRoot, ".github", "workflows", "playwright-ui-smoke.yml"), "utf8");
+    if (!workflow.includes("working-directory: apps/web")) {
+      throw new Error("Monorepo workflow did not use apps/web working-directory");
+    }
+  }
 
   installChromium(packageManager, fixtureDir);
   runSmoke(packageManager, fixtureDir);
 } finally {
   if (!process.env.KEEP_E2E_FIXTURES) {
     await rm(packDir, { recursive: true, force: true });
-    await rm(fixtureDir, { recursive: true, force: true });
+    await rm(repoRoot, { recursive: true, force: true });
   } else {
     console.log(`Kept fixture: ${fixtureDir}`);
   }

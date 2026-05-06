@@ -18,6 +18,12 @@ Use the public CLI whenever possible:
 npx playwright-ui-smoke-kit init
 ```
 
+For monorepos:
+
+```bash
+npx playwright-ui-smoke-kit init --repo-root . --app-dir apps/web
+```
+
 When the project shape is clear, use non-interactive flags:
 
 ```bash
@@ -36,7 +42,9 @@ npx playwright-ui-smoke-kit init \
 3. Choose `vite-app`, `next-app`, `app-plus-api`, or `static-site`.
 4. Select stable, non-mutating routes and visible markers.
 5. Avoid overwriting existing Playwright files unless the user explicitly requests replacement.
-6. Run the generated `smoke:web-ui` script.
+6. Use `npx playwright-ui-smoke-kit doctor` to check an existing setup.
+7. Use `npx playwright-ui-smoke-kit add-route "/dashboard::Dashboard"` for later route additions.
+8. Run the generated `smoke:web-ui` script.
 
 ## Manual Fallback
 
@@ -63,6 +71,12 @@ The smoke test should open routes, assert visible text markers, collect `console
 ## OpenClaw Installation
 
 Install this skill as a shared local OpenClaw skill:
+
+```bash
+npx playwright-ui-smoke-kit install-skill openclaw
+```
+
+Manual install:
 
 ```bash
 mkdir -p ~/.openclaw/skills

@@ -8,6 +8,17 @@
 npx playwright-ui-smoke-kit init
 ```
 
+Для монорепозитория используйте отдельные пути:
+
+```bash
+npx playwright-ui-smoke-kit init \
+  --yes \
+  --repo-root . \
+  --app-dir apps/web \
+  --template vite-app \
+  --route "/::Home"
+```
+
 Для запуска без вопросов:
 
 ```bash
@@ -31,6 +42,18 @@ npm run smoke:web-ui
 pnpm run smoke:web-ui
 yarn smoke:web-ui
 bun run smoke:web-ui
+```
+
+Проверить установленную настройку:
+
+```bash
+npx playwright-ui-smoke-kit doctor
+```
+
+Добавить маршрут:
+
+```bash
+npx playwright-ui-smoke-kit add-route "/dashboard::Dashboard"
 ```
 
 ## Что появится в проекте

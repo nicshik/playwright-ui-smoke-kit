@@ -1,0 +1,11 @@
+{
+  "name": "playwright-ui-smoke-kit-app-plus-api-example",
+  "private": true,
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "dev:api": "node api.mjs"
+  },
+  "dependencies": {
+    "vite": "latest"
+  }
+}

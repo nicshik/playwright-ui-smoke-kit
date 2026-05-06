@@ -7,7 +7,6 @@ export interface PackageManagerCommands {
   install: string;
   installFrozen: string;
   playwrightInstall: string;
-  runSmoke: string;
 }
 
 const lockfileManagers: Array<[string, PackageManager]> = [
@@ -69,7 +68,6 @@ export function commandsForPackageManager(manager: PackageManager): PackageManag
         install: "npm install",
         installFrozen: "npm ci",
         playwrightInstall: "npx playwright install --with-deps chromium",
-        runSmoke: "npm run smoke:web-ui",
       };
     case "pnpm":
       return {
@@ -77,7 +75,6 @@ export function commandsForPackageManager(manager: PackageManager): PackageManag
         install: "pnpm install",
         installFrozen: "pnpm install --frozen-lockfile",
         playwrightInstall: "pnpm exec playwright install --with-deps chromium",
-        runSmoke: "pnpm run smoke:web-ui",
       };
     case "yarn":
       return {
@@ -85,7 +82,6 @@ export function commandsForPackageManager(manager: PackageManager): PackageManag
         install: "yarn install",
         installFrozen: "yarn install --immutable || yarn install --frozen-lockfile",
         playwrightInstall: "yarn playwright install --with-deps chromium",
-        runSmoke: "yarn smoke:web-ui",
       };
     case "bun":
       return {
@@ -93,7 +89,6 @@ export function commandsForPackageManager(manager: PackageManager): PackageManag
         install: "bun install",
         installFrozen: "bun install --frozen-lockfile",
         playwrightInstall: "bunx playwright install --with-deps chromium",
-        runSmoke: "bun run smoke:web-ui",
       };
   }
 }
@@ -110,6 +105,10 @@ export function runScriptCommand(manager: PackageManager, script: string, args =
     case "bun":
       return `bun run ${script}${suffix}`;
   }
+}
+
+export function runPackageScript(manager: PackageManager, script: string) {
+  return runScriptCommand(manager, script);
 }
 
 export function lockfileForPackageManager(manager: PackageManager) {

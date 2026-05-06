@@ -1,0 +1,12 @@
+{
+  "name": "playwright-ui-smoke-kit-next-example",
+  "private": true,
+  "scripts": {
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  }
+}

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { mkdtemp } from "node:fs/promises";
 import { describe, expect, test } from "vitest";
-import { commandsForPackageManager, detectPackageManager } from "../src/package-manager.js";
+import { commandsForPackageManager, detectPackageManager, runPackageScript } from "../src/package-manager.js";
 
 async function tempProject() {
   const dir = await mkdtemp(join(tmpdir(), "pusk-pm-"));
@@ -36,7 +36,7 @@ describe("package manager detection", () => {
 
 describe("package manager commands", () => {
   test("generates install and smoke commands for each supported manager", () => {
-    expect(commandsForPackageManager("npm").runSmoke).toBe("npm run smoke:web-ui");
+    expect(runPackageScript("npm", "smoke:web-ui")).toBe("npm run smoke:web-ui");
     expect(commandsForPackageManager("pnpm").playwrightInstall).toContain("pnpm exec playwright");
     expect(commandsForPackageManager("yarn").addDev).toBe("yarn add -D @playwright/test");
     expect(commandsForPackageManager("bun").installFrozen).toBe("bun install --frozen-lockfile");

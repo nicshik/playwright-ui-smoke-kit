@@ -20,6 +20,7 @@ describe("initProject", () => {
     const dir = await tempProject();
 
     const result = await initProject({
+      repoRoot: dir,
       appDir: dir,
       yes: true,
       skipInstall: true,
@@ -33,6 +34,7 @@ describe("initProject", () => {
     expect(result.files.map((file) => file.replace(dir, ""))).toEqual([
       "/playwright.config.ts",
       "/tests/ui-smoke.spec.ts",
+      "/tests/static-server.mjs",
       "/.github/workflows/playwright-ui-smoke.yml",
     ]);
 
@@ -55,6 +57,7 @@ describe("initProject", () => {
     const dir = await tempProject();
 
     const result = await initProject({
+      repoRoot: dir,
       appDir: dir,
       yes: true,
       dryRun: true,
@@ -73,6 +76,7 @@ describe("initProject", () => {
 
     await expect(
       initProject({
+        repoRoot: dir,
         appDir: dir,
         yes: true,
         skipInstall: true,
@@ -87,6 +91,7 @@ describe("initProject", () => {
 
     await expect(
       initProject({
+        repoRoot: dir,
         appDir: dir,
         yes: true,
         skipInstall: true,
