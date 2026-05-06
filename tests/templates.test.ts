@@ -9,6 +9,7 @@ describe("template rendering", () => {
       const preset = getTemplatePreset(template, "npm");
       const config = renderPlaywrightConfig({
         baseURL: `http://127.0.0.1:${preset.webPort}`,
+        testDir: "./tests",
         webServers: [{ command: preset.webCommand, url: `http://127.0.0.1:${preset.webPort}/` }],
       });
       const spec = renderUiSmokeSpec(preset.routes);
@@ -22,11 +23,12 @@ describe("template rendering", () => {
 
   test("renders parseable GitHub workflow for each package manager", () => {
     for (const packageManager of ["npm", "pnpm", "yarn", "bun"] as const) {
-      const workflow = renderGithubWorkflow({ appDir: ".", packageManager });
+      const workflow = renderGithubWorkflow({ appDir: ".", packageManager, scriptName: "smoke:web-ui" });
       const parsed = parse(workflow) as Record<string, unknown>;
 
       expect(parsed.name).toBe("Playwright UI Smoke");
       expect(workflow).toContain("Run Playwright UI smoke");
+      expect(workflow).toContain("smoke:web-ui");
     }
   });
 });

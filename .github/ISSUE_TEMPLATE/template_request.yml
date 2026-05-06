@@ -1,0 +1,17 @@
+name: Template request
+description: Request a new starter template or generated file shape.
+title: "Template: "
+labels: ["template"]
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: Describe the project shape and the expected generated files.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example command
+      placeholder: "npx playwright-ui-smoke-kit init ..."

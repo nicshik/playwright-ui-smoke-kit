@@ -1,5 +1,5 @@
 import path from "node:path";
-import { commandsForPackageManager, lockfileForPackageManager } from "./package-manager.js";
+import { commandsForPackageManager, lockfileForPackageManager, runPackageScript } from "./package-manager.js";
 import type { PackageManager, RouteSpec, WebServerSpec } from "./types.js";
 
 function quote(value: string) {
@@ -7,16 +7,23 @@ function quote(value: string) {
 }
 
 function renderWebServer(server: WebServerSpec) {
+  const env =
+    server.env && Object.keys(server.env).length > 0
+      ? `,
+      env: ${JSON.stringify(server.env, null, 8).replace(/\n/g, "\n      ")}`
+      : "";
+
   return `    {
       command: ${quote(server.command)},
       url: ${quote(server.url)},
       reuseExistingServer,
-      timeout: 60_000,
+      timeout: 60_000${env},
     }`;
 }
 
 export function renderPlaywrightConfig(options: {
   baseURL: string;
+  testDir: string;
   webServers: WebServerSpec[];
 }) {
   return `import { defineConfig, devices } from "@playwright/test";
@@ -24,7 +31,7 @@ export function renderPlaywrightConfig(options: {
 const reuseExistingServer = !process.env.CI;
 
 export default defineConfig({
-  testDir: "./tests",
+  testDir: ${quote(options.testDir)},
   timeout: 30_000,
   expect: {
     timeout: 15_000,
@@ -93,6 +100,54 @@ test.describe("UI smoke", () => {
 `;
 }
 
+export function renderStaticServer() {
+  return `import { createReadStream, existsSync, statSync } from "node:fs";
+import { createServer } from "node:http";
+import { extname, join, normalize, resolve, sep } from "node:path";
+
+const root = resolve(process.env.STATIC_ROOT || ".");
+const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || "127.0.0.1";
+
+const contentTypes = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".txt": "text/plain; charset=utf-8",
+};
+
+function resolveRequestPath(url) {
+  const requestPath = decodeURIComponent(new URL(url || "/", "http://127.0.0.1").pathname);
+  const normalized = normalize(requestPath).replace(/^([/\\\\])+/, "");
+  const candidate = resolve(join(root, normalized));
+  if (candidate !== root && !candidate.startsWith(root + sep)) {
+    return undefined;
+  }
+  if (existsSync(candidate) && statSync(candidate).isDirectory()) {
+    return join(candidate, "index.html");
+  }
+  return candidate;
+}
+
+createServer((request, response) => {
+  const filePath = resolveRequestPath(request.url);
+  if (!filePath || !existsSync(filePath) || !statSync(filePath).isFile()) {
+    response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    response.end("Not found");
+    return;
+  }
+
+  const contentType = contentTypes[extname(filePath)] || "application/octet-stream";
+  response.writeHead(200, { "content-type": contentType });
+  createReadStream(filePath).pipe(response);
+}).listen(port, host, () => {
+  console.log(\`Static smoke server listening on http://\${host}:\${port}\`);
+});
+`;
+}
+
 function posixPath(value: string) {
   return value.split(path.sep).join(path.posix.sep);
 }
@@ -105,9 +160,11 @@ function workflowPath(appDir: string, fileName: string) {
 export function renderGithubWorkflow(options: {
   appDir: string;
   packageManager: PackageManager;
+  scriptName: string;
 }) {
   const manager = options.packageManager;
   const commands = commandsForPackageManager(manager);
+  const runSmoke = runPackageScript(manager, options.scriptName);
   const appDir = posixPath(options.appDir || ".");
   const lockfile = workflowPath(appDir, lockfileForPackageManager(manager));
   const artifactPrefix = appDir === "." ? "" : `${appDir}/`;
@@ -145,7 +202,7 @@ jobs:
         run: ${commands.playwrightInstall}
 
       - name: Run Playwright UI smoke
-        run: ${commands.runSmoke}
+        run: ${runSmoke}
 
       - name: Upload Playwright artifacts
         if: failure()
@@ -213,7 +270,7 @@ ${setupPackageManager}      - name: Setup Node.js
         run: ${commands.playwrightInstall}
 
       - name: Run Playwright UI smoke
-        run: ${commands.runSmoke}
+        run: ${runSmoke}
 
       - name: Upload Playwright artifacts
         if: failure()

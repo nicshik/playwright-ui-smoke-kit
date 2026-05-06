@@ -13,6 +13,13 @@
     "url": "https://github.com/nicshik/playwright-ui-smoke-kit/issues"
   },
   "homepage": "https://github.com/nicshik/playwright-ui-smoke-kit#readme",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
     "playwright-ui-smoke-kit": "dist/cli.js"
   },
@@ -21,6 +28,7 @@
     "docs",
     "skills",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "SECURITY.md"
   ],
@@ -32,9 +40,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:e2e": "node scripts/e2e-fixture-smoke.mjs",
+    "test:readme": "node scripts/readme-command-smoke.mjs",
     "validate:skills": "node scripts/validate-skills.mjs",
     "prepack": "npm run build",
-    "pack:dry-run": "npm pack --dry-run"
+    "pack:dry-run": "npm pack --dry-run",
+    "publish:dry-run": "npm publish --dry-run"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.1.0",

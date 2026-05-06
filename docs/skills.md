@@ -4,7 +4,13 @@ This repository ships skills for agents that can install UI smoke checks in proj
 
 ## Codex
 
-Copy the skill directory into your Codex skills directory:
+Install the skill with the CLI:
+
+```bash
+npx playwright-ui-smoke-kit install-skill codex
+```
+
+Or copy the skill directory manually:
 
 ```bash
 mkdir -p ~/.codex/skills
@@ -19,7 +25,13 @@ Use playwright-smoke-setup to add UI smoke checks to this project.
 
 ## OpenClaw
 
-Copy the OpenClaw skill pack into a shared OpenClaw skills directory:
+Install the OpenClaw skill pack with the CLI:
+
+```bash
+npx playwright-ui-smoke-kit install-skill openclaw
+```
+
+Or copy it manually:
 
 ```bash
 mkdir -p ~/.openclaw/skills

@@ -1,0 +1,19 @@
+name: Framework request
+description: Request first-class support for another web framework.
+title: "Framework: "
+labels: ["framework"]
+body:
+  - type: input
+    id: framework
+    attributes:
+      label: Framework
+      placeholder: "Remix, Angular, SolidStart..."
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Dev commands and ports
+      description: Show the command that starts the app and the default local URL.
+    validations:
+      required: true

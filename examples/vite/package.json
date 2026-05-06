@@ -1,0 +1,11 @@
+{
+  "name": "playwright-ui-smoke-kit-vite-example",
+  "private": true,
+  "scripts": {
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest"
+  }
+}

@@ -36,6 +36,9 @@ jobs:
       - name: Validate skills
         run: npm run validate:skills
 
+      - name: Publish dry run
+        run: npm run publish:dry-run
+
       - name: Publish to npm
         run: npm publish --provenance --access public
         env:

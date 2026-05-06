@@ -3,7 +3,11 @@ import { confirm, input, select } from "@inquirer/prompts";
 import { Command, Option } from "commander";
 import { commandsForPackageManager, detectPackageManager } from "./package-manager.js";
 import { getTemplatePreset, templateNames } from "./presets.js";
+import { detectProjectDefaults } from "./framework.js";
 import { initProject } from "./init.js";
+import { addRouteToSpec } from "./add-route.js";
+import { doctorProject } from "./doctor.js";
+import { installSkill, type SkillTarget } from "./skills.js";
 import type { CiProvider, InitOptions, PackageManager, TemplateName } from "./types.js";
 
 function collect(value: string, previous: string[]) {
@@ -16,6 +20,10 @@ async function maybePrompt(options: InitOptions): Promise<InitOptions> {
   const appDir = await input({
     message: "App directory",
     default: options.appDir || ".",
+  });
+  const repoRoot = await input({
+    message: "Repository root",
+    default: options.repoRoot || ".",
   });
 
   const detectedManager = options.packageManager ?? (await detectPackageManager(appDir));
@@ -30,21 +38,22 @@ async function maybePrompt(options: InitOptions): Promise<InitOptions> {
     ],
   });
 
+  const detectedProject = await detectProjectDefaults(appDir, packageManager);
   const template = await select<TemplateName>({
     message: "Project template",
-    default: options.template ?? "vite-app",
+    default: options.template ?? detectedProject.template,
     choices: templateNames.map((name) => ({ name, value: name })),
   });
 
   const preset = getTemplatePreset(template, packageManager);
   const webCommand = await input({
     message: "Web app command",
-    default: options.webCommand ?? preset.webCommand,
+    default: options.webCommand ?? detectedProject.webCommand ?? preset.webCommand,
   });
   const webPort = Number(
     await input({
       message: "Web app port",
-      default: String(options.webPort ?? preset.webPort),
+      default: String(options.webPort ?? detectedProject.webPort ?? preset.webPort),
     }),
   );
 
@@ -89,6 +98,7 @@ async function maybePrompt(options: InitOptions): Promise<InitOptions> {
 
   return {
     ...options,
+    repoRoot,
     appDir,
     packageManager,
     template,
@@ -115,6 +125,7 @@ async function main() {
   program
     .command("init")
     .description("Add Playwright UI smoke files to a web project.")
+    .option("--repo-root <dir>", "repository root for .github/workflows", ".")
     .option("--app-dir <dir>", "directory with package.json", ".")
     .addOption(new Option("--template <name>", "template preset").choices(templateNames))
     .addOption(new Option("--package-manager <name>", "package manager").choices(["npm", "pnpm", "yarn", "bun"]))
@@ -123,6 +134,11 @@ async function main() {
     .option("--api-command <command>", "optional API command")
     .option("--api-url <url>", "optional API health URL")
     .option("--route <route>", "repeatable route as /path::Visible marker", collect, [])
+    .option("--script-name <name>", "package.json script name", "smoke:web-ui")
+    .option("--test-dir <dir>", "directory for generated Playwright smoke tests", "tests")
+    .option("--workflow-name <name>", "GitHub Actions workflow file name", "playwright-ui-smoke.yml")
+    .option("--web-env <entry>", "repeatable web server env as KEY=value", collect, [])
+    .option("--api-env <entry>", "repeatable API server env as KEY=value", collect, [])
     .addOption(new Option("--ci <provider>", "CI provider").choices(["github", "none"]).default("github"))
     .option("--dry-run", "print planned changes without writing files")
     .option("--force", "overwrite generated files and replace smoke:web-ui script")
@@ -144,6 +160,57 @@ async function main() {
       if (result.dryRun && !finalOptions.skipInstall) {
         console.log(`Install command: ${commandsForPackageManager(result.packageManager).addDev}`);
       }
+    });
+
+  program
+    .command("doctor")
+    .description("Check an existing Playwright UI smoke setup.")
+    .option("--repo-root <dir>", "repository root for .github/workflows", ".")
+    .option("--app-dir <dir>", "directory with package.json", ".")
+    .option("--script-name <name>", "package.json script name", "smoke:web-ui")
+    .option("--test-dir <dir>", "directory for generated Playwright smoke tests", "tests")
+    .option("--workflow-name <name>", "GitHub Actions workflow file name", "playwright-ui-smoke.yml")
+    .action(async (options: { repoRoot: string; appDir: string; scriptName: string; testDir: string; workflowName: string }) => {
+      const checks = await doctorProject(options);
+      for (const check of checks) {
+        const icon = check.status === "pass" ? "PASS" : check.status === "warn" ? "WARN" : "FAIL";
+        console.log(`[${icon}] ${check.name}: ${check.message}`);
+      }
+      if (checks.some((check) => check.status === "fail")) {
+        process.exitCode = 1;
+      }
+    });
+
+  program
+    .command("add-route")
+    .description("Add one route marker to generated tests/ui-smoke.spec.ts.")
+    .argument("<route>", "route as /path::Visible marker")
+    .option("--app-dir <dir>", "directory with package.json", ".")
+    .option("--test-dir <dir>", "directory with ui-smoke.spec.ts", "tests")
+    .option("--dry-run", "print planned change without writing files")
+    .action(async (route: string, options: { appDir: string; testDir: string; dryRun?: boolean }) => {
+      const result = await addRouteToSpec({ ...options, route });
+      if (!result.changed) {
+        console.log(`Route ${result.route.path} already exists in ${result.specPath}`);
+        return;
+      }
+      console.log(`${options.dryRun ? "Would add" : "Added"} ${result.route.path} to ${result.specPath}`);
+    });
+
+  program
+    .command("install-skill")
+    .description("Install the bundled Codex or OpenClaw skill.")
+    .argument("<target>", "codex | openclaw")
+    .option("--dry-run", "print target path without copying files")
+    .option("--force", "replace existing skill directory")
+    .action(async (target: string, options: { dryRun?: boolean; force?: boolean }) => {
+      if (!["codex", "openclaw"].includes(target)) {
+        throw new Error(`Unsupported skill target: ${target}`);
+      }
+      const result = await installSkill({ target: target as SkillTarget, ...options });
+      console.log(`${options.dryRun ? "Would install" : "Installed"} ${target} skill`);
+      console.log(`- from ${result.source}`);
+      console.log(`- to ${result.destination}`);
     });
 
   await program.parseAsync(process.argv);

@@ -53,7 +53,20 @@ npx playwright-ui-smoke-kit init \
 Default command:
 
 ```bash
-npx http-server . -a 127.0.0.1 -p 4173
+node tests/static-server.mjs
 ```
 
 Default port: `4173`.
+
+The kit generates `tests/static-server.mjs`, so this template does not require `http-server` or any other external static server dependency.
+
+## Auto-detection
+
+When `--template` is omitted, the CLI inspects dependencies and config files:
+
+- `next` -> `next-app`;
+- `astro` -> Vite-style command on port `4321`;
+- `@sveltejs/kit` -> Vite-style command on port `5173`;
+- `nuxt` -> Vite-style command on port `3000`;
+- `vite` or `vite.config.*` -> `vite-app`;
+- otherwise `vite-app`.

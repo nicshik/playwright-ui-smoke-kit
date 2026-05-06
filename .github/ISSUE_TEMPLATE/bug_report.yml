@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible problem with the CLI or generated files.
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Kit version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: package-manager
+    attributes:
+      label: Package manager
+      options:
+        - npm
+        - pnpm
+        - yarn
+        - bun
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Include the exact command and relevant generated files.
+    validations:
+      required: true
