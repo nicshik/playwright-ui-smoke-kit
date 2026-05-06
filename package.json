@@ -14,7 +14,7 @@
   },
   "homepage": "https://github.com/nicshik/playwright-ui-smoke-kit#readme",
   "bin": {
-    "playwright-ui-smoke-kit": "./dist/cli.js"
+    "playwright-ui-smoke-kit": "dist/cli.js"
   },
   "files": [
     "dist",
