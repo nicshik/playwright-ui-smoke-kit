@@ -13,3 +13,5 @@ Do not include secrets, private application URLs, or proprietary source code in 
 ## Threat Model
 
 This package writes test configuration files and can run package manager install commands. Review generated files before committing them, especially when using third-party templates or skill packs.
+
+Package releases use npm Trusted Publishing from GitHub Actions instead of long-lived npm tokens. Do not commit npm credentials, `.npmrc` auth tokens, or generated package tarballs.
