@@ -45,7 +45,7 @@ Then configure Trusted Publishing in the npm package settings. After that, futur
 
 The release workflow checks whether the package version already exists on npm. If the first version was published manually, creating the matching GitHub Release will not fail on duplicate publish; it will skip `npm publish`.
 
-## Publish a Version
+## Publish the First Version
 
 1. Confirm `package.json` and `CHANGELOG.md` describe the version to publish.
 2. Confirm CI is green on `main`.
@@ -60,6 +60,28 @@ gh release create v0.1.0 \
 ```
 
 The release workflow runs typecheck, unit tests, skill validation, checks whether the version is already on npm, and then runs `npm publish --dry-run` plus `npm publish --access public` only for unpublished versions.
+
+## Publish Future Versions
+
+After Trusted Publishing is configured, do not run `npm publish` manually for routine releases. Let GitHub Actions publish from a GitHub Release.
+
+For a patch release:
+
+```bash
+git switch main
+git pull --ff-only origin main
+npm version patch
+git push origin main --follow-tags
+gh release create "$(node -p "'v' + require('./package.json').version")" \
+  --repo nicshik/playwright-ui-smoke-kit \
+  --target main \
+  --title "$(node -p "'v' + require('./package.json').version")" \
+  --notes "Release $(node -p "'v' + require('./package.json').version")"
+```
+
+Use `npm version minor` or `npm version major` instead of `npm version patch` when the release type requires it.
+
+The GitHub Release triggers `.github/workflows/release.yml`, which validates the package and publishes the new npm version through Trusted Publishing. No `NPM_TOKEN` is needed.
 
 ## Verify
 
