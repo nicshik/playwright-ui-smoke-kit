@@ -28,6 +28,10 @@ export interface InitOptions {
   scriptName?: string;
   testDir?: string;
   workflowName?: string;
+  baseBranch?: string;
+  workflowPath?: string[];
+  workflowAllChanges?: boolean;
+  workflowTimeout?: number;
   webEnv?: string[];
   apiEnv?: string[];
   ci?: CiProvider;

@@ -24,6 +24,15 @@ For monorepos, pass both roots:
 npx playwright-ui-smoke-kit init --repo-root . --app-dir apps/web
 ```
 
+When a monorepo app depends on shared frontend packages, add those globs so the generated workflow still runs when shared UI code changes:
+
+```bash
+npx playwright-ui-smoke-kit init \
+  --repo-root . \
+  --app-dir apps/web \
+  --workflow-path "packages/ui/**"
+```
+
 Use non-interactive mode when enough project facts are known:
 
 ```bash
@@ -41,7 +50,12 @@ npx playwright-ui-smoke-kit init \
    - `static-site` for static HTML or documentation sites;
    - `vite-app` for Vite, Astro, SvelteKit, Nuxt, and unknown JavaScript web apps unless project evidence suggests another template.
 4. Do not use `--force` unless the user explicitly asks to replace existing Playwright files.
-5. Use `doctor` after installation and `add-route` for later route additions:
+5. Keep the generated GitHub Actions workflow cost-aware unless the project explicitly needs broader coverage:
+   - leave base-branch triggers and `concurrency` enabled;
+   - prefer generated `paths` or `paths-ignore` filters;
+   - use `--workflow-all-changes` only when the app depends on broad repository state;
+   - do not make a path-filtered browser workflow the only required branch-protection check.
+6. Use `doctor` after installation and `add-route` for later route additions:
 
 ```bash
 npx playwright-ui-smoke-kit doctor
@@ -98,6 +112,7 @@ Use equivalent commands for `pnpm`, `yarn`, or `bun`.
 - Use Playwright `webServer` to start required local processes.
 - Use `trace: "retain-on-failure"` and `screenshot: "only-on-failure"`.
 - In CI, install browsers with `playwright install --with-deps chromium`.
+- In GitHub Actions, avoid duplicate `push` and `pull_request` runs and use `concurrency.cancel-in-progress`.
 
 ## Verification
 

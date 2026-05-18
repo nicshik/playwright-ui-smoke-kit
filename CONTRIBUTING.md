@@ -19,6 +19,7 @@ PACKAGE_MANAGER=npm npm run test:e2e
 
 - Keep generated UI smoke tests non-mutating.
 - Keep Chromium-only smoke as the first layer.
+- Keep generated GitHub Actions workflows cost-aware: base-branch triggers, concurrency cancellation, short timeouts, and path filters.
 - Add or update tests for CLI behavior changes.
 - Do not commit Playwright reports, browser binaries, or fixture output.
 

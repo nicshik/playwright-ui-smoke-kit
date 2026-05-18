@@ -9,6 +9,8 @@ Install a small, boring Playwright UI smoke check in a web project.
 
 The kit creates a Chromium-only route smoke test, a Playwright config, a GitHub Actions workflow, and a `smoke:web-ui` package script. It is meant to be the first browser check you add to a project: fast enough for every pull request, simple enough to debug, and explicit enough to copy between teams.
 
+The generated GitHub Actions workflow is cost-aware by default: it cancels stale runs, avoids duplicate branch and pull request runs, skips docs-only changes, and keeps the browser smoke timeout short.
+
 ## Quick Start
 
 ```bash
@@ -143,6 +145,10 @@ npx playwright-ui-smoke-kit install-skill openclaw
 --script-name <name>         package.json script name
 --test-dir <dir>             directory for generated smoke tests
 --workflow-name <name>       GitHub Actions workflow file name
+--base-branch <name>         base branch for generated GitHub Actions triggers
+--workflow-path <glob>       repeatable extra GitHub Actions path glob
+--workflow-all-changes       run the generated workflow for all changed files
+--workflow-timeout <minutes> GitHub Actions job timeout in minutes
 --web-env <entry>            repeatable web server env as KEY=value
 --api-env <entry>            repeatable API server env as KEY=value
 --ci <provider>              github | none
@@ -151,6 +157,29 @@ npx playwright-ui-smoke-kit install-skill openclaw
 --yes                        accept defaults
 --skip-install               do not install @playwright/test
 ```
+
+## GitHub Actions Minutes
+
+The generated workflow is designed to avoid common minute leaks:
+
+- `push` and `pull_request` are limited to the base branch, so a feature branch with an open pull request does not run the same browser smoke twice.
+- `concurrency.cancel-in-progress` cancels stale runs when a newer commit arrives on the same branch or pull request.
+- Root apps use `paths-ignore` for docs-only changes. Monorepos use `paths` for the app directory, workflow file, package files, and any extra `--workflow-path` values.
+- The default workflow timeout is 10 minutes. Raise it with `--workflow-timeout` only when the app reliably needs more time.
+
+For monorepos with shared frontend packages, add those packages explicitly:
+
+```bash
+npx playwright-ui-smoke-kit init \
+  --repo-root . \
+  --app-dir apps/web \
+  --workflow-path "packages/ui/**" \
+  --workflow-path "packages/design-system/**"
+```
+
+If the workflow must run for every file change, pass `--workflow-all-changes`.
+
+Do not make a path-filtered Playwright workflow the only required branch protection check. If branch protection needs a required check, use a separate always-running gate and keep this browser workflow optional or conditionally triggered.
 
 ## Skills
 

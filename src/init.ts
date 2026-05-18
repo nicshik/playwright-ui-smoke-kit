@@ -29,6 +29,7 @@ const PLAYWRIGHT_VERSION = "^1.59.1";
 const DEFAULT_SCRIPT_NAME = "smoke:web-ui";
 const DEFAULT_TEST_DIR = "tests";
 const DEFAULT_WORKFLOW_NAME = "playwright-ui-smoke.yml";
+const DEFAULT_WORKFLOW_TIMEOUT = 10;
 
 function exists(filePath: string) {
   try {
@@ -77,6 +78,26 @@ function parseEnv(values: string[] | undefined) {
     env[key] = envValue;
   }
   return env;
+}
+
+function detectBaseBranch(repoRoot: string) {
+  const result = spawnSync("git", ["-C", repoRoot, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  if (result.status === 0) {
+    const branch = result.stdout.trim().replace(/^origin\//, "");
+    if (branch) return branch;
+  }
+  return "main";
+}
+
+function normalizePositiveInteger(value: number | undefined, fallback: number, name: string) {
+  if (value === undefined) return fallback;
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return value;
 }
 
 function mergeEnv(
@@ -180,6 +201,12 @@ export async function initProject(rawOptions: InitOptions): Promise<InitResult> 
   const scriptName = rawOptions.scriptName ?? DEFAULT_SCRIPT_NAME;
   const testDir = rawOptions.testDir ?? DEFAULT_TEST_DIR;
   const workflowName = rawOptions.workflowName ?? DEFAULT_WORKFLOW_NAME;
+  const baseBranch = rawOptions.baseBranch ?? detectBaseBranch(repoRoot);
+  const workflowTimeout = normalizePositiveInteger(
+    rawOptions.workflowTimeout,
+    DEFAULT_WORKFLOW_TIMEOUT,
+    "--workflow-timeout",
+  );
   let webCommand = rawOptions.webCommand ?? detectedDefaults.webCommand ?? preset.webCommand;
   if (preset.staticServer && !rawOptions.webCommand) {
     webCommand = `node ${testDir}/static-server.mjs`;
@@ -223,6 +250,11 @@ export async function initProject(rawOptions: InitOptions): Promise<InitResult> 
         appDir: relativeAppDir(repoRoot, appDir),
         packageManager,
         scriptName,
+        workflowName,
+        baseBranch,
+        workflowPaths: rawOptions.workflowPath,
+        workflowAllChanges: rawOptions.workflowAllChanges,
+        workflowTimeout,
       }),
     );
   }

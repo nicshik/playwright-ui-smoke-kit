@@ -50,3 +50,5 @@ OpenClaw skills can also live in workspace-local `skills/` or `.agents/skills/` 
 ## Safety
 
 The skills recommend `npx playwright-ui-smoke-kit init` as the primary path. They should inspect a project first, choose the closest template, and avoid overwriting existing test files unless the user explicitly asks for `--force`.
+
+The generated GitHub Actions workflow is cost-aware by default. For monorepos, skills should add shared frontend paths with `--workflow-path` when discovered. Use `--workflow-all-changes` only when the project needs browser smoke on every file change, and do not make a path-filtered browser workflow the only required branch protection check.
