@@ -38,6 +38,50 @@ describe("repo root and app dir", () => {
     const workflow = await readFile(join(repoRoot, ".github", "workflows", "playwright-ui-smoke.yml"), "utf8");
     expect(workflow).toContain("working-directory: apps/web");
     expect(workflow).toContain("cache-dependency-path: apps/web/package-lock.json");
+    expect(workflow).toContain('"apps/web/**"');
+    expect(workflow).toContain("concurrency:");
+    expect(workflow).toContain("timeout-minutes: 10");
+  });
+
+  test("passes workflow cost controls from init options", async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), "pusk-options-"));
+    const appDir = join(repoRoot, "apps", "web");
+    await mkdir(appDir, { recursive: true });
+    await writeFile(join(appDir, "package.json"), JSON.stringify({ name: "web" }), "utf8");
+
+    await initProject({
+      repoRoot,
+      appDir,
+      yes: true,
+      skipInstall: true,
+      packageManager: "npm",
+      routes: ["/::Home"],
+      baseBranch: "develop",
+      workflowPath: ["packages/ui/**"],
+      workflowTimeout: 12,
+    });
+
+    const workflow = await readFile(join(repoRoot, ".github", "workflows", "playwright-ui-smoke.yml"), "utf8");
+    expect(workflow).toContain('- "develop"');
+    expect(workflow).toContain('- "packages/ui/**"');
+    expect(workflow).toContain("timeout-minutes: 12");
+  });
+
+  test("can disable workflow path filters from init options", async () => {
+    const dir = await tempProject();
+    await initProject({
+      repoRoot: dir,
+      appDir: dir,
+      yes: true,
+      skipInstall: true,
+      packageManager: "npm",
+      routes: ["/::Home"],
+      workflowAllChanges: true,
+    });
+
+    const workflow = await readFile(join(dir, ".github", "workflows", "playwright-ui-smoke.yml"), "utf8");
+    expect(workflow).not.toContain("paths:");
+    expect(workflow).not.toContain("paths-ignore:");
   });
 
   test("renders env values through Playwright webServer.env", async () => {
@@ -116,6 +160,49 @@ describe("doctor", () => {
     const checks = await doctorProject({ repoRoot: dir, appDir: dir });
     expect(checks.some((check) => check.name === "playwright.config.ts" && check.status === "pass")).toBe(true);
     expect(checks.some((check) => check.name === "@playwright/test" && check.status === "pass")).toBe(true);
+    expect(checks.filter((check) => check.status === "warn").map((check) => check.name)).not.toContain(
+      "workflow trigger scope",
+    );
+    expect(checks.filter((check) => check.status === "warn").map((check) => check.name)).not.toContain(
+      "workflow concurrency",
+    );
+    expect(checks.filter((check) => check.status === "warn").map((check) => check.name)).not.toContain(
+      "workflow path filter",
+    );
+  });
+
+  test("warns about older expensive GitHub Actions workflow shape", async () => {
+    const dir = await tempProject({
+      scripts: { "smoke:web-ui": "playwright test" },
+      devDependencies: { "@playwright/test": "latest" },
+    });
+    await mkdir(join(dir, "tests"), { recursive: true });
+    await mkdir(join(dir, ".github", "workflows"), { recursive: true });
+    await writeFile(join(dir, "playwright.config.ts"), "export default {};\n", "utf8");
+    await writeFile(join(dir, "tests", "ui-smoke.spec.ts"), "test('placeholder', () => {});\n", "utf8");
+    await writeFile(
+      join(dir, ".github", "workflows", "playwright-ui-smoke.yml"),
+      `name: Playwright UI Smoke
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  playwright-ui-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+`,
+      "utf8",
+    );
+
+    const checks = await doctorProject({ repoRoot: dir, appDir: dir });
+    const warnings = checks.filter((check) => check.status === "warn").map((check) => check.name);
+
+    expect(warnings).toContain("workflow trigger scope");
+    expect(warnings).toContain("workflow concurrency");
+    expect(warnings).toContain("workflow timeout");
+    expect(warnings).toContain("workflow path filter");
   });
 });
 

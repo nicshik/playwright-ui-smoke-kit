@@ -1,8 +1,29 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/ru/**"
+      - "docs/skills.md"
+      - "docs/templates.md"
+      - "LICENSE"
+      - "SECURITY.md"
   pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/ru/**"
+      - "docs/skills.md"
+      - "docs/templates.md"
+      - "LICENSE"
+      - "SECURITY.md"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

@@ -157,32 +157,120 @@ function workflowPath(appDir: string, fileName: string) {
   return normalized === "." ? fileName : `${normalized}/${fileName}`;
 }
 
+const rootDocsOnlyPathsIgnore = [
+  "docs/**",
+  "**/*.md",
+  "LICENSE",
+  "SECURITY.md",
+  ".github/ISSUE_TEMPLATE/**",
+  ".github/PULL_REQUEST_TEMPLATE.md",
+];
+
+function yamlString(value: string) {
+  return JSON.stringify(value);
+}
+
+function renderYamlList(name: "paths" | "paths-ignore", values: string[]) {
+  return values.length === 0
+    ? ""
+    : `
+    ${name}:
+${values.map((value) => `      - ${yamlString(value)}`).join("\n")}`;
+}
+
+function unique(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function workflowFilter(options: {
+  appDir: string;
+  workflowName: string;
+  packageManager: PackageManager;
+  workflowPaths?: string[];
+  workflowAllChanges?: boolean;
+}) {
+  if (options.workflowAllChanges) return "";
+
+  const workflowFile = `.github/workflows/${options.workflowName}`;
+  if (options.appDir === ".") {
+    return renderYamlList("paths-ignore", rootDocsOnlyPathsIgnore);
+  }
+
+  const paths = unique([
+    `${options.appDir}/**`,
+    workflowFile,
+    workflowPath(options.appDir, "package.json"),
+    workflowPath(options.appDir, lockfileForPackageManager(options.packageManager)),
+    ...(options.workflowPaths ?? []),
+  ]);
+
+  return renderYamlList("paths", paths);
+}
+
+function renderGithubWorkflowHeader(options: {
+  appDir: string;
+  packageManager: PackageManager;
+  workflowName: string;
+  baseBranch: string;
+  workflowPaths?: string[];
+  workflowAllChanges?: boolean;
+}) {
+  const filter = workflowFilter(options);
+
+  return `name: Playwright UI Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ${yamlString(options.baseBranch)}${filter}
+  pull_request:
+    branches:
+      - ${yamlString(options.baseBranch)}${filter}
+
+concurrency:
+  group: \${{ github.workflow }}-\${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+`;
+}
+
 export function renderGithubWorkflow(options: {
   appDir: string;
   packageManager: PackageManager;
   scriptName: string;
+  workflowName?: string;
+  baseBranch?: string;
+  workflowPaths?: string[];
+  workflowAllChanges?: boolean;
+  workflowTimeout?: number;
 }) {
   const manager = options.packageManager;
   const commands = commandsForPackageManager(manager);
   const runSmoke = runPackageScript(manager, options.scriptName);
   const appDir = posixPath(options.appDir || ".");
+  const workflowName = options.workflowName ?? "playwright-ui-smoke.yml";
+  const baseBranch = options.baseBranch ?? "main";
+  const workflowTimeout = options.workflowTimeout ?? 10;
   const lockfile = workflowPath(appDir, lockfileForPackageManager(manager));
   const artifactPrefix = appDir === "." ? "" : `${appDir}/`;
+  const header = renderGithubWorkflowHeader({
+    appDir,
+    packageManager: manager,
+    workflowName,
+    baseBranch,
+    workflowPaths: options.workflowPaths,
+    workflowAllChanges: options.workflowAllChanges,
+  });
 
   if (manager === "bun") {
-    return `name: Playwright UI Smoke
-
-on:
-  push:
-  pull_request:
-
-permissions:
-  contents: read
-
+    return `${header}
 jobs:
   playwright-ui-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: ${workflowTimeout}
 
     defaults:
       run:
@@ -234,19 +322,11 @@ jobs:
 
   const setupNodeCache = manager === "npm" ? "npm" : manager;
 
-  return `name: Playwright UI Smoke
-
-on:
-  push:
-  pull_request:
-
-permissions:
-  contents: read
-
+  return `${header}
 jobs:
   playwright-ui-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: ${workflowTimeout}
 
     defaults:
       run:

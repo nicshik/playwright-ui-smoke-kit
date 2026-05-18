@@ -24,6 +24,15 @@ For monorepos:
 npx playwright-ui-smoke-kit init --repo-root . --app-dir apps/web
 ```
 
+If the app depends on shared frontend packages, add them to the generated workflow:
+
+```bash
+npx playwright-ui-smoke-kit init \
+  --repo-root . \
+  --app-dir apps/web \
+  --workflow-path "packages/ui/**"
+```
+
 When the project shape is clear, use non-interactive flags:
 
 ```bash
@@ -42,9 +51,12 @@ npx playwright-ui-smoke-kit init \
 3. Choose `vite-app`, `next-app`, `app-plus-api`, or `static-site`.
 4. Select stable, non-mutating routes and visible markers.
 5. Avoid overwriting existing Playwright files unless the user explicitly requests replacement.
-6. Use `npx playwright-ui-smoke-kit doctor` to check an existing setup.
-7. Use `npx playwright-ui-smoke-kit add-route "/dashboard::Dashboard"` for later route additions.
-8. Run the generated `smoke:web-ui` script.
+6. Keep GitHub Actions cost-aware: base-branch triggers, concurrency cancellation, short timeouts, and generated path filters.
+7. Use `--workflow-all-changes` only when the project needs browser smoke on every file change.
+8. Do not make a path-filtered browser workflow the only required branch-protection check.
+9. Use `npx playwright-ui-smoke-kit doctor` to check an existing setup.
+10. Use `npx playwright-ui-smoke-kit add-route "/dashboard::Dashboard"` for later route additions.
+11. Run the generated `smoke:web-ui` script.
 
 ## Manual Fallback
 

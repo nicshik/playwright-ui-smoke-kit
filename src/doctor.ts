@@ -1,6 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
+import { parse } from "yaml";
 import { detectPackageManager } from "./package-manager.js";
 
 export type DoctorStatus = "pass" | "warn" | "fail";
@@ -45,6 +46,93 @@ function extractPorts(playwrightConfig: string) {
     ports.add(Number(match[1]));
   }
   return [...ports].filter((port) => Number.isInteger(port) && port > 0);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function workflowEvent(workflow: Record<string, unknown>, name: string) {
+  return asRecord(asRecord(workflow.on)[name]);
+}
+
+function hasBranches(event: Record<string, unknown>) {
+  return Array.isArray(event.branches) && event.branches.length > 0;
+}
+
+function hasPathFilter(event: Record<string, unknown>) {
+  return (
+    (Array.isArray(event.paths) && event.paths.length > 0) ||
+    (Array.isArray(event["paths-ignore"]) && event["paths-ignore"].length > 0)
+  );
+}
+
+function inspectWorkflow(workflowText: string): DoctorCheck[] {
+  const checks: DoctorCheck[] = [];
+  let workflow: Record<string, unknown>;
+
+  try {
+    workflow = asRecord(parse(workflowText));
+  } catch (error) {
+    return [{
+      name: "workflow syntax",
+      status: "fail",
+      message: `Could not parse workflow YAML: ${error instanceof Error ? error.message : String(error)}`,
+    }];
+  }
+
+  const push = workflowEvent(workflow, "push");
+  const pullRequest = workflowEvent(workflow, "pull_request");
+  const pushBounded = Object.keys(push).length > 0 && hasBranches(push);
+  const pullRequestBounded = Object.keys(pullRequest).length > 0 && hasBranches(pullRequest);
+
+  checks.push({
+    name: "workflow trigger scope",
+    status: pushBounded && pullRequestBounded ? "pass" : "warn",
+    message: pushBounded && pullRequestBounded
+      ? "push and pull_request are limited to base branches"
+      : "Limit push and pull_request to the base branch to avoid duplicate branch and PR runs",
+  });
+
+  checks.push({
+    name: "workflow concurrency",
+    status: workflow.concurrency ? "pass" : "warn",
+    message: workflow.concurrency
+      ? "Stale runs on the same branch or PR are cancelled"
+      : "Add concurrency.cancel-in-progress to cancel stale runs",
+  });
+
+  const jobs = asRecord(workflow.jobs);
+  const timeoutValues = Object.values(jobs)
+    .map((job) => asRecord(job)["timeout-minutes"])
+    .filter((value): value is number => typeof value === "number");
+  const highTimeout = timeoutValues.some((value) => value > 15);
+  checks.push({
+    name: "workflow timeout",
+    status: highTimeout ? "warn" : "pass",
+    message: highTimeout
+      ? `Reduce UI smoke timeout from ${Math.max(...timeoutValues)} minutes unless the app needs it`
+      : "Timeout is in the expected 10-15 minute range",
+  });
+
+  const hasFilter = hasPathFilter(push) || hasPathFilter(pullRequest);
+  checks.push({
+    name: "workflow path filter",
+    status: hasFilter ? "pass" : "warn",
+    message: hasFilter
+      ? "Workflow has a path filter to avoid unrelated runs"
+      : "Add paths or paths-ignore so docs-only changes do not spend browser minutes",
+  });
+
+  checks.push({
+    name: "required check policy",
+    status: "pass",
+    message: hasFilter
+      ? "Do not make this path-filtered workflow the only required check; use a separate always-running gate"
+      : "If this workflow becomes required, keep it always-running or add a separate required gate",
+  });
+
+  return checks;
 }
 
 export async function doctorProject(options: {
@@ -98,6 +186,7 @@ export async function doctorProject(options: {
   const specPath = path.join(appDir, testDir, "ui-smoke.spec.ts");
   const workflowPath = path.join(repoRoot, ".github", "workflows", workflowName);
   const config = await readText(configPath);
+  const workflowText = await readText(workflowPath);
 
   checks.push({
     name: "playwright.config.ts",
@@ -111,9 +200,13 @@ export async function doctorProject(options: {
   });
   checks.push({
     name: "GitHub Actions workflow",
-    status: (await exists(workflowPath)) ? "pass" : "warn",
-    message: (await exists(workflowPath)) ? `Found ${workflowPath}` : `Missing ${workflowPath}`,
+    status: workflowText ? "pass" : "warn",
+    message: workflowText ? `Found ${workflowPath}` : `Missing ${workflowPath}`,
   });
+
+  if (workflowText) {
+    checks.push(...inspectWorkflow(workflowText));
+  }
 
   if (config) {
     for (const port of extractPorts(config)) {
