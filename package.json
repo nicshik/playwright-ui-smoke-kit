@@ -1,6 +1,6 @@
 {
   "name": "playwright-ui-smoke-kit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Install a small Playwright Chromium UI smoke check in web projects.",
   "type": "module",
   "license": "MIT",

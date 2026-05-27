@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- Added `artifact-init` for reusable browser task artifact workspaces.
+- Added `artifact-check` with strict proof-readiness checks.
+- Exported browser task artifact helpers and types from the package entrypoint.
+- Documented the browser task artifact workflow.
+
 ## 0.1.1
 
 - Added cost-aware GitHub Actions workflow generation with base-branch triggers, concurrency cancellation, path filters, and a 10 minute default timeout.
