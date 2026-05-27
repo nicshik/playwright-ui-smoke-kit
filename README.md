@@ -123,6 +123,22 @@ Add a new route marker:
 npx playwright-ui-smoke-kit add-route "/dashboard::Dashboard"
 ```
 
+Create a reusable browser task artifact workspace:
+
+```bash
+npx playwright-ui-smoke-kit artifact-init \
+  --task-id customer-new-task-proof \
+  --title "Customer new task proof" \
+  --source "http://127.0.0.1:5173/customer/new-task"
+```
+
+Check the artifact before using it as proof:
+
+```bash
+npx playwright-ui-smoke-kit artifact-check .tmp/browser-task-artifacts/customer-new-task-proof
+npx playwright-ui-smoke-kit artifact-check .tmp/browser-task-artifacts/customer-new-task-proof --strict
+```
+
 Install bundled agent skills:
 
 ```bash
@@ -157,6 +173,28 @@ npx playwright-ui-smoke-kit install-skill openclaw
 --yes                        accept defaults
 --skip-install               do not install @playwright/test
 ```
+
+## Browser Task Artifacts
+
+Route smoke tests are intentionally small. For longer browser work, use an artifact workspace: a task plan, a final script, an action log, screenshots, a structured result, and verification notes.
+
+`artifact-init` creates this structure without starting a browser or touching external sites:
+
+```text
+.tmp/browser-task-artifacts/<task-id>/
+  task.md
+  plan.md
+  verification.md
+  final_runs/run_001/
+    final_script.ts
+    action_log.md
+    result.json
+    screenshots/
+```
+
+`artifact-check` validates the structure and `result.json`. `--strict` is for real proof: it requires `status=verified`, a non-placeholder command, non-empty `critical_points` and `evidence_refs`, at least one screenshot, and no `TODO` or `pending` markers in `verification.md`.
+
+Use this mode for repeatable browser tasks, extraction or form-fill workflows, visual proof, and task-specific scripts. Keep the generated GitHub Actions route smoke small; promote an artifact into CI only after it is deterministic, safe, and fast.
 
 ## GitHub Actions Minutes
 

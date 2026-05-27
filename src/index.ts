@@ -1,4 +1,5 @@
 export { addRouteToSpec } from "./add-route.js";
+export { checkBrowserTaskArtifact, initBrowserTaskArtifact } from "./artifact.js";
 export { doctorProject } from "./doctor.js";
 export { detectProjectDefaults } from "./framework.js";
 export { initProject } from "./init.js";
@@ -8,4 +9,5 @@ export { parseRoute, parseRoutes } from "./routes.js";
 export { renderGithubWorkflow, renderPlaywrightConfig, renderUiSmokeSpec } from "./render.js";
 export { installSkill } from "./skills.js";
 export type { DoctorCheck, DoctorStatus } from "./doctor.js";
+export type { ArtifactCheck, ArtifactCheckResult, ArtifactCheckStatus, ArtifactInitOptions, ArtifactInitResult, ArtifactScriptExt } from "./artifact.js";
 export type { CiProvider, InitOptions, InitResult, PackageManager, RouteSpec, TemplateName } from "./types.js";

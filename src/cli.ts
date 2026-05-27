@@ -8,6 +8,7 @@ import { initProject } from "./init.js";
 import { addRouteToSpec } from "./add-route.js";
 import { doctorProject } from "./doctor.js";
 import { installSkill, type SkillTarget } from "./skills.js";
+import { checkBrowserTaskArtifact, initBrowserTaskArtifact } from "./artifact.js";
 import type { CiProvider, InitOptions, PackageManager, TemplateName } from "./types.js";
 
 function collect(value: string, previous: string[]) {
@@ -199,6 +200,39 @@ async function main() {
         return;
       }
       console.log(`${options.dryRun ? "Would add" : "Added"} ${result.route.path} to ${result.specPath}`);
+    });
+
+  program
+    .command("artifact-init")
+    .description("Create a browser task artifact workspace template.")
+    .requiredOption("--task-id <id>", "lowercase id for the artifact workspace")
+    .option("--title <text>", "human-readable task title")
+    .option("--source <url-or-path>", "source URL or local route")
+    .option("--out-dir <dir>", "output root for artifact workspaces", ".tmp/browser-task-artifacts")
+    .addOption(new Option("--script-ext <ext>", "final script extension").choices(["ts", "js", "py"]).default("ts"))
+    .action(async (options: { taskId: string; title?: string; source?: string; outDir: string; scriptExt: "ts" | "js" | "py" }) => {
+      const result = await initBrowserTaskArtifact(options);
+      console.log(`Created browser task artifact workspace: ${result.workspaceDir}`);
+      for (const file of result.files) {
+        console.log(`- ${file}`);
+      }
+      console.log("Next: fill task.md and plan.md, replace final_script, run from a clean start, then run artifact-check --strict.");
+    });
+
+  program
+    .command("artifact-check")
+    .description("Check a browser task artifact workspace.")
+    .argument("<artifact-dir>", "artifact workspace directory")
+    .option("--strict", "require verified status and concrete evidence")
+    .action(async (artifactDir: string, options: { strict?: boolean }) => {
+      const result = await checkBrowserTaskArtifact(artifactDir, { strict: options.strict });
+      for (const check of result.checks) {
+        const icon = check.status === "pass" ? "PASS" : check.status === "warn" ? "WARN" : "FAIL";
+        console.log(`[${icon}] ${check.name}: ${check.message}`);
+      }
+      if (result.checks.some((check) => check.status === "fail")) {
+        process.exitCode = 1;
+      }
     });
 
   program
