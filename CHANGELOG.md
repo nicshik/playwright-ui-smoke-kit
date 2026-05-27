@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Added `artifact-run` for executing browser task artifact final scripts.
+- Added a strict verified browser task artifact example.
+- Expanded artifact workflow documentation, README About, and strict mode guidance.
+- Added bundled `browser-task-artifact` skills for Codex and OpenClaw.
+- Added `install-skill --skill smoke|browser-task-artifact|all`.
+- Fixed the CLI version banner to read from `package.json`.
+
 ## 0.1.2
 
 - Added `artifact-init` for reusable browser task artifact workspaces.

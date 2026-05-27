@@ -1,18 +1,26 @@
 #!/usr/bin/env node
 import { confirm, input, select } from "@inquirer/prompts";
 import { Command, Option } from "commander";
+import { createRequire } from "node:module";
 import { commandsForPackageManager, detectPackageManager } from "./package-manager.js";
 import { getTemplatePreset, templateNames } from "./presets.js";
 import { detectProjectDefaults } from "./framework.js";
 import { initProject } from "./init.js";
 import { addRouteToSpec } from "./add-route.js";
 import { doctorProject } from "./doctor.js";
-import { installSkill, type SkillTarget } from "./skills.js";
-import { checkBrowserTaskArtifact, initBrowserTaskArtifact } from "./artifact.js";
+import { installSkills, type SkillSelection, type SkillTarget } from "./skills.js";
+import { checkBrowserTaskArtifact, initBrowserTaskArtifact, runBrowserTaskArtifact } from "./artifact.js";
 import type { CiProvider, InitOptions, PackageManager, TemplateName } from "./types.js";
+
+const require = createRequire(import.meta.url);
+const packageJson = require("../package.json") as { version: string };
 
 function collect(value: string, previous: string[]) {
   return [...previous, value];
+}
+
+function shellQuote(value: string) {
+  return /^[A-Za-z0-9_/:=.,@%+-]+$/.test(value) ? value : JSON.stringify(value);
 }
 
 async function maybePrompt(options: InitOptions): Promise<InitOptions> {
@@ -121,7 +129,7 @@ async function main() {
   program
     .name("playwright-ui-smoke-kit")
     .description("Install a Chromium-only Playwright UI smoke check.")
-    .version("0.1.0");
+    .version(packageJson.version);
 
   program
     .command("init")
@@ -236,19 +244,45 @@ async function main() {
     });
 
   program
+    .command("artifact-run")
+    .description("Run a browser task artifact final_script from its run directory.")
+    .argument("<artifact-dir>", "artifact workspace directory")
+    .argument("[scriptArgs...]", "arguments passed to final_script after --")
+    .option("--run <run-id>", "run directory id under final_runs, such as run_001")
+    .option("--script <path>", "script path, absolute or relative to the run directory")
+    .option("--dry-run", "print the resolved command without running it")
+    .action(async (artifactDir: string, scriptArgs: string[], options: { run?: string; script?: string; dryRun?: boolean }) => {
+      const result = await runBrowserTaskArtifact({
+        artifactDir,
+        runId: options.run,
+        script: options.script,
+        dryRun: options.dryRun,
+        args: scriptArgs,
+      });
+      console.log(`${result.dryRun ? "Would run" : "Ran"} artifact script in ${result.runDir}`);
+      console.log(result.command.map(shellQuote).join(" "));
+      if (!result.dryRun && result.exitCode !== 0) {
+        process.exitCode = result.exitCode ?? 1;
+      }
+    });
+
+  program
     .command("install-skill")
     .description("Install the bundled Codex or OpenClaw skill.")
     .argument("<target>", "codex | openclaw")
+    .addOption(new Option("--skill <name>", "skill to install").choices(["smoke", "browser-task-artifact", "all"]).default("smoke"))
     .option("--dry-run", "print target path without copying files")
     .option("--force", "replace existing skill directory")
-    .action(async (target: string, options: { dryRun?: boolean; force?: boolean }) => {
+    .action(async (target: string, options: { skill: SkillSelection; dryRun?: boolean; force?: boolean }) => {
       if (!["codex", "openclaw"].includes(target)) {
         throw new Error(`Unsupported skill target: ${target}`);
       }
-      const result = await installSkill({ target: target as SkillTarget, ...options });
-      console.log(`${options.dryRun ? "Would install" : "Installed"} ${target} skill`);
-      console.log(`- from ${result.source}`);
-      console.log(`- to ${result.destination}`);
+      const results = await installSkills({ target: target as SkillTarget, ...options });
+      console.log(`${options.dryRun ? "Would install" : "Installed"} ${target} ${results.length === 1 ? "skill" : "skills"}`);
+      for (const result of results) {
+        console.log(`- from ${result.source}`);
+        console.log(`- to ${result.destination}`);
+      }
     });
 
   await program.parseAsync(process.argv);

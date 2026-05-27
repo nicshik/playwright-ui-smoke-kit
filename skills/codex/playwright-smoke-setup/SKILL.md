@@ -5,6 +5,17 @@ description: Add or maintain Playwright Chromium UI smoke checks in JavaScript/T
 
 # Playwright Smoke Setup
 
+## Boundary
+
+Use this skill for baseline route-smoke coverage: install Playwright, generate
+`playwright.config.ts`, route marker tests, and a small GitHub Actions workflow.
+
+If the user asks for a repeatable browser task, reusable task-specific script,
+web extraction/form-fill automation, visual proof, screenshots as evidence, or
+"browser task -> verified artifact", use `browser-task-artifact` instead. A
+stable artifact can later be promoted into route smoke or CI, but the artifact
+workflow should prove the task first.
+
 ## Workflow
 
 1. Inspect the project before changing files:
@@ -70,6 +81,12 @@ Install or update this skill with:
 
 ```bash
 npx playwright-ui-smoke-kit install-skill codex
+```
+
+Install both bundled Codex skills with:
+
+```bash
+npx playwright-ui-smoke-kit install-skill codex --skill all
 ```
 
 Use `--dry-run` before copying and `--force` only when replacing an existing local skill.

@@ -4,15 +4,24 @@ import { join } from "node:path";
 import YAML from "yaml";
 
 const root = new URL("..", import.meta.url).pathname;
-const codexSkillDir = join(root, "skills/codex/playwright-smoke-setup");
 const skills = [
   {
     file: "skills/codex/playwright-smoke-setup/SKILL.md",
     expectedName: "playwright-smoke-setup",
+    quickValidate: true,
+  },
+  {
+    file: "skills/codex/browser-task-artifact/SKILL.md",
+    expectedName: "browser-task-artifact",
+    quickValidate: true,
   },
   {
     file: "skills/openclaw/playwright_ui_smoke_setup/SKILL.md",
     expectedName: "playwright_ui_smoke_setup",
+  },
+  {
+    file: "skills/openclaw/browser_task_artifact/SKILL.md",
+    expectedName: "browser_task_artifact",
   },
 ];
 
@@ -44,7 +53,7 @@ for (const skill of skills) {
     throw new Error(`${skill.file}: missing description`);
   }
 
-  if (skill.expectedName === "playwright_ui_smoke_setup") {
+  if (skill.file.startsWith("skills/openclaw/")) {
     const bins = frontmatter.metadata?.openclaw?.requires?.bins;
     if (!Array.isArray(bins) || !bins.includes("node")) {
       throw new Error(`${skill.file}: missing metadata.openclaw.requires.bins: [node]`);
@@ -59,9 +68,12 @@ const quickValidateCandidates = [
 
 for (const candidate of quickValidateCandidates) {
   if (await exists(candidate)) {
-    const result = spawnSync("python3", [candidate, codexSkillDir], { stdio: "inherit" });
-    if (result.status !== 0) {
-      throw new Error(`Codex quick_validate.py failed for ${codexSkillDir}`);
+    for (const skill of skills.filter((entry) => entry.quickValidate)) {
+      const codexSkillDir = join(root, skill.file, "..");
+      const result = spawnSync("python3", [candidate, codexSkillDir], { stdio: "inherit" });
+      if (result.status !== 0) {
+        throw new Error(`Codex quick_validate.py failed for ${codexSkillDir}`);
+      }
     }
     break;
   }
