@@ -10,6 +10,17 @@ metadata:
 
 # Playwright UI Smoke Setup
 
+## Boundary
+
+Use this skill for baseline route-smoke coverage: install Playwright, generate
+`playwright.config.ts`, route marker tests, and a small GitHub Actions workflow.
+
+If the user asks for a repeatable browser task, reusable task-specific script,
+web extraction/form-fill automation, visual proof, screenshots as evidence, or
+"browser task -> verified artifact", use `browser_task_artifact` instead. A
+stable artifact can later be promoted into route smoke or CI, but the artifact
+workflow should prove the task first.
+
 ## Preferred Path
 
 Use the public CLI whenever possible:
@@ -86,6 +97,12 @@ Install this skill as a shared local OpenClaw skill:
 
 ```bash
 npx playwright-ui-smoke-kit install-skill openclaw
+```
+
+Install both bundled OpenClaw skills:
+
+```bash
+npx playwright-ui-smoke-kit install-skill openclaw --skill all
 ```
 
 Manual install:

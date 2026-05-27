@@ -7,7 +7,7 @@ import { addRouteToSpec } from "../src/add-route.js";
 import { doctorProject } from "../src/doctor.js";
 import { detectProjectDefaults } from "../src/framework.js";
 import { initProject } from "../src/init.js";
-import { installSkill } from "../src/skills.js";
+import { installSkill, installSkills } from "../src/skills.js";
 
 async function tempProject(packageJson: Record<string, unknown> = {}) {
   const dir = await mkdtemp(join(tmpdir(), "pusk-cli-"));
@@ -207,7 +207,7 @@ jobs:
 });
 
 describe("skill installer", () => {
-  test("resolves Codex target path in dry-run mode", async () => {
+  test("resolves default Codex smoke skill target path in dry-run mode", async () => {
     const home = await mkdtemp(join(tmpdir(), "pusk-home-"));
     const previousHome = process.env.HOME;
     process.env.HOME = home;
@@ -215,6 +215,84 @@ describe("skill installer", () => {
       const result = await installSkill({ target: "codex", dryRun: true });
       expect(result.destination).toContain(".codex");
       expect(result.source).toContain("skills/codex/playwright-smoke-setup");
+    } finally {
+      if (previousHome === undefined) {
+        delete process.env.HOME;
+      } else {
+        process.env.HOME = previousHome;
+      }
+    }
+  });
+
+  test("resolves Codex browser task artifact skill target path in dry-run mode", async () => {
+    const home = await mkdtemp(join(tmpdir(), "pusk-home-"));
+    const previousHome = process.env.HOME;
+    process.env.HOME = home;
+    try {
+      const result = await installSkill({ target: "codex", skill: "browser-task-artifact", dryRun: true });
+      expect(result.destination).toContain(".codex");
+      expect(result.destination).toContain("browser-task-artifact");
+      expect(result.source).toContain("skills/codex/browser-task-artifact");
+    } finally {
+      if (previousHome === undefined) {
+        delete process.env.HOME;
+      } else {
+        process.env.HOME = previousHome;
+      }
+    }
+  });
+
+  test("resolves all Codex skill target paths in dry-run mode", async () => {
+    const home = await mkdtemp(join(tmpdir(), "pusk-home-"));
+    const previousHome = process.env.HOME;
+    process.env.HOME = home;
+    try {
+      const results = await installSkills({ target: "codex", skill: "all", dryRun: true });
+      expect(results).toHaveLength(2);
+      expect(results.map((result) => result.destination)).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("playwright-smoke-setup"),
+          expect.stringContaining("browser-task-artifact"),
+        ]),
+      );
+    } finally {
+      if (previousHome === undefined) {
+        delete process.env.HOME;
+      } else {
+        process.env.HOME = previousHome;
+      }
+    }
+  });
+
+  test("does not require force for dry-run when target skill already exists", async () => {
+    const home = await mkdtemp(join(tmpdir(), "pusk-home-"));
+    const previousHome = process.env.HOME;
+    process.env.HOME = home;
+    try {
+      await mkdir(join(home, ".codex", "skills", "browser-task-artifact"), { recursive: true });
+      const result = await installSkill({ target: "codex", skill: "browser-task-artifact", dryRun: true });
+      expect(result.destination).toContain("browser-task-artifact");
+    } finally {
+      if (previousHome === undefined) {
+        delete process.env.HOME;
+      } else {
+        process.env.HOME = previousHome;
+      }
+    }
+  });
+
+  test("resolves OpenClaw smoke and browser task artifact target paths in dry-run mode", async () => {
+    const home = await mkdtemp(join(tmpdir(), "pusk-home-"));
+    const previousHome = process.env.HOME;
+    process.env.HOME = home;
+    try {
+      const smoke = await installSkill({ target: "openclaw", dryRun: true });
+      const artifact = await installSkill({ target: "openclaw", skill: "browser-task-artifact", dryRun: true });
+      expect(smoke.destination).toContain(".openclaw");
+      expect(smoke.destination).toContain("playwright_ui_smoke_setup");
+      expect(artifact.destination).toContain(".openclaw");
+      expect(artifact.destination).toContain("browser_task_artifact");
+      expect(artifact.source).toContain("skills/openclaw/browser_task_artifact");
     } finally {
       if (previousHome === undefined) {
         delete process.env.HOME;

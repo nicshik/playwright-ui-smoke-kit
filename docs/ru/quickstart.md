@@ -58,6 +58,40 @@ npx playwright-ui-smoke-kit doctor
 npx playwright-ui-smoke-kit add-route "/dashboard::Dashboard"
 ```
 
+## Browser task artifacts
+
+Для повторяемых браузерных задач, где нужен проверяемый артефакт, используйте отдельный workflow:
+
+Обычный route smoke отвечает на вопрос "страница открылась и показала маркер".
+Artifact mode отвечает на вопрос "важная браузерная задача доказана, есть
+повторяемый скрипт, журнал, снимки и проверка результата".
+
+```bash
+npx playwright-ui-smoke-kit artifact-init \
+  --task-id customer-new-task-proof \
+  --title "Customer new task proof" \
+  --source "http://127.0.0.1:5173/customer/new-task"
+```
+
+После заполнения `task.md`, `plan.md` и `final_script.*` запустите скрипт:
+
+```bash
+npx playwright-ui-smoke-kit artifact-run .tmp/browser-task-artifacts/customer-new-task-proof -- --user customer-a
+```
+
+Проверка готового доказательства:
+
+```bash
+npx playwright-ui-smoke-kit artifact-check .tmp/browser-task-artifacts/customer-new-task-proof --strict
+```
+
+Строгий режим требует `status=verified`, непустые `critical_points` и `evidence_refs`, результат, снимок экрана и чистый `verification.md` без черновых маркеров.
+
+Этот режим полезен для сложного пользовательского пути, визуального proof,
+повторяемого web workflow или задачи, которую позже можно превратить в
+обычный Playwright e2e/smoke-тест. Не смешивайте его с базовым route smoke:
+быстрый CI-слой должен оставаться маленьким.
+
 ## Что появится в проекте
 
 ```text

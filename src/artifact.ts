@@ -1,4 +1,6 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 export type ArtifactScriptExt = "ts" | "js" | "py";
@@ -30,9 +32,29 @@ export interface ArtifactCheckResult {
   checks: ArtifactCheck[];
 }
 
+export interface ArtifactRunOptions {
+  artifactDir: string;
+  runId?: string;
+  script?: string;
+  args?: string[];
+  dryRun?: boolean;
+}
+
+export interface ArtifactRunResult {
+  artifactDir: string;
+  runDir: string;
+  scriptPath: string;
+  command: string[];
+  dryRun: boolean;
+  exitCode?: number | null;
+  signal?: NodeJS.Signals | null;
+}
+
 const TASK_ID_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
 const DEFAULT_OUT_DIR = ".tmp/browser-task-artifacts";
 const SCHEMA_VERSION = "browser_task_artifact.v1";
+const FINAL_SCRIPT_NAMES = ["final_script.ts", "final_script.js", "final_script.py"] as const;
+const require = createRequire(import.meta.url);
 
 async function exists(filePath: string) {
   try {
@@ -263,7 +285,6 @@ function hasTodoOrPending(text: string) {
 async function latestRunDir(artifactDir: string) {
   const runsRoot = path.join(artifactDir, "final_runs");
   if (!(await exists(runsRoot))) return undefined;
-  const { readdir } = await import("node:fs/promises");
   const entries = await readdir(runsRoot, { withFileTypes: true });
   const runs = entries
     .filter((entry) => entry.isDirectory() && /^run_/.test(entry.name))
@@ -274,7 +295,6 @@ async function latestRunDir(artifactDir: string) {
 
 async function countFiles(dirPath: string) {
   if (!(await exists(dirPath))) return 0;
-  const { readdir } = await import("node:fs/promises");
   const entries = await readdir(dirPath, { withFileTypes: true });
   let count = 0;
   for (const entry of entries) {
@@ -356,7 +376,7 @@ export async function checkBrowserTaskArtifact(
     checks.push(await dirCheck(path.join(runDir, "screenshots"), "screenshots"));
     checks.push(await fileCheck(path.join(runDir, "result.json"), "result.json"));
 
-    const scripts = ["ts", "js", "py"].map((ext) => path.join(runDir, `final_script.${ext}`));
+    const scripts = FINAL_SCRIPT_NAMES.map((name) => path.join(runDir, name));
     checks.push(
       (await Promise.all(scripts.map(exists))).some(Boolean)
         ? check("pass", "final_script", "Found final_script")
@@ -400,4 +420,99 @@ export async function checkBrowserTaskArtifact(
   }
 
   return { artifactDir: resolvedArtifactDir, latestRunDir: runDir, checks };
+}
+
+async function resolveArtifactRunDir(artifactDir: string, runId?: string) {
+  if (runId) {
+    const runDir = path.join(artifactDir, "final_runs", runId);
+    if (!(await exists(runDir))) {
+      throw new Error(`Artifact run not found: ${runDir}`);
+    }
+    return runDir;
+  }
+
+  const runDir = await latestRunDir(artifactDir);
+  if (!runDir) {
+    throw new Error(`No final_runs/run_* directory found in ${artifactDir}`);
+  }
+  return runDir;
+}
+
+async function resolveArtifactScript(runDir: string, script?: string) {
+  if (script) {
+    const scriptPath = path.isAbsolute(script) ? script : path.resolve(runDir, script);
+    if (!(await exists(scriptPath))) {
+      throw new Error(`Artifact script not found: ${scriptPath}`);
+    }
+    return scriptPath;
+  }
+
+  const scripts = FINAL_SCRIPT_NAMES.map((name) => path.join(runDir, name));
+  const existingScripts = (await Promise.all(scripts.map(async (scriptPath) => ((await exists(scriptPath)) ? scriptPath : undefined)))).filter(
+    (scriptPath): scriptPath is string => Boolean(scriptPath),
+  );
+
+  if (existingScripts.length === 0) {
+    throw new Error(`No ${FINAL_SCRIPT_NAMES.join(", ")} found in ${runDir}`);
+  }
+
+  if (existingScripts.length > 1) {
+    throw new Error(`Multiple final scripts found in ${runDir}; pass --script to choose one.`);
+  }
+
+  return existingScripts[0];
+}
+
+function commandForArtifactScript(scriptPath: string, args: string[]) {
+  const ext = path.extname(scriptPath);
+  if (ext === ".js") {
+    return [process.execPath, scriptPath, ...args];
+  }
+  if (ext === ".py") {
+    return ["python3", scriptPath, ...args];
+  }
+  if (ext === ".ts") {
+    return [process.execPath, require.resolve("tsx/cli"), scriptPath, ...args];
+  }
+  throw new Error(`Unsupported artifact script extension: ${ext}`);
+}
+
+export async function runBrowserTaskArtifact(options: ArtifactRunOptions): Promise<ArtifactRunResult> {
+  const resolvedArtifactDir = path.resolve(options.artifactDir);
+  if (!(await exists(resolvedArtifactDir))) {
+    throw new Error(`Artifact directory not found: ${resolvedArtifactDir}`);
+  }
+
+  const runDir = await resolveArtifactRunDir(resolvedArtifactDir, options.runId);
+  const scriptPath = await resolveArtifactScript(runDir, options.script);
+  const command = commandForArtifactScript(scriptPath, options.args ?? []);
+
+  if (options.dryRun) {
+    return {
+      artifactDir: resolvedArtifactDir,
+      runDir,
+      scriptPath,
+      command,
+      dryRun: true,
+    };
+  }
+
+  const child = spawn(command[0], command.slice(1), {
+    cwd: runDir,
+    stdio: "inherit",
+  });
+
+  const result = await new Promise<{ exitCode: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (exitCode, signal) => resolve({ exitCode, signal }));
+  });
+
+  return {
+    artifactDir: resolvedArtifactDir,
+    runDir,
+    scriptPath,
+    command,
+    dryRun: false,
+    ...result,
+  };
 }
