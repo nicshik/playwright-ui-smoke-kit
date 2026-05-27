@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 - 2026-05-27
 
 - Added `artifact-run` for executing browser task artifact final scripts.
 - Added a strict verified browser task artifact example.
